@@ -27,27 +27,37 @@
 (.noteOff channel 65)
 
 ; This'll probably make it into the final run
-(defn playNote[channel note duration]
+(defn playNote[channel note intensity duration]
 	(.start (new Thread (fn []
-		(.noteOn channel note 200)
+		(.noteOn channel note intensity)
 		(Thread/sleep duration)
 		(.noteOff channel note)
 	)))
 )
 
+; Guessin' music is gonna be some something like
+;  [note1 intensity1 duration1 pauseAfter1]
+;  [note2 intensity2 duration2 pauseAfter2] ... 
+(defn playNotes [channel music]
+	(dotimes [n (count music)]
+		(let [q (nth music n)]
+			(playNote channel (nth q 0) (nth q 1) (nth q 2))
+			(Thread/sleep (nth q 3))
+		)
+	)
+)
 
 
 
-
-
-(count (list "a" "b" "c"))
 
 (defn beat[]
-	(.noteOn channel 65 200)
-	(.noteOn channel 67 200)
-	(Thread/sleep 150)
-	(.noteOff channel 65)	
-	(.noteOff channel 67)	
+	; Use zero to play two notes simultaneously...
+	(playNotes channel (list 
+		[65 255 100 0] [67 255 100 300] 
+		[65 255 100 0] [67 255 100 300] 
+		[67 255 100 0] [71 255 100 250]
+		[67 255 100 0] [69 255 100 300]
+	))
 )
 
 (beat)
@@ -69,7 +79,7 @@
 
 (def isItOn (new Integer 4))
 (def isItOn nil)
-(startBeat beat 375)
+(startBeat beat 0)
 
 
 
