@@ -1,32 +1,22 @@
-(import '(javax.sound.midi MidiSystem ShortMessage) )
+(import '(javax.sound.midi MidiSystem) )
 (def synth (MidiSystem/getSynthesizer))
 (.open synth)
 
 (def instruments (.getAvailableInstruments synth))
 
+(dotimes [i (count instruments)]
+	(println (str i (nth instruments i)))
+)
 
 ; See what instruments are loaded with --
 ; (map (fn [a] (.getName a)) instruments)
+; (.loadInstrument synth (nth instruments 3))
 
-(.loadInstrument synth (nth instruments 3))
+; num, for most implementations should be 0 through 15.
+(defn channel[num]
+	(nth (.getChannels synth) num)
+)
 
-(def channel (nth (.getChannels synth) 0))
-
-;(defn programChange [chan instrument]
-;	(let [q (new ShortMessage)]
-;		(.setMessage q (ShortMessage/PROGRAM_CHANGE 0 instrument 0) 
-;	)
-;)
-
-(.programChange channel (rand-int 120))
-
-
-
-; Channel's where the real magic is. There should be 16 of 'dem.
-(.noteOn channel 65 200)
-(.noteOff channel 65)
-
-; This'll probably make it into the final run
 (defn playNote[channel note intensity duration]
 	(.start (new Thread (fn []
 		(.noteOn channel note intensity)
@@ -35,9 +25,25 @@
 	)))
 )
 
-; Guessin' music is gonna be some something like
+; NOTES-- 
+; 60 is C4
+; 61 - C4 #
+; 62 - D4
+; 63 - D4 #
+; 64 - E4
+; 65 - F4
+; 66 - F4 #
+; 67 - G4
+; 68 - G4 #
+; 69 - A4
+; 70 - A4 #
+; 71 - B4
+; 72 - C5
+; etc
+
+; Music is (list
 ;  [note1 intensity1 duration1 pauseAfter1]
-;  [note2 intensity2 duration2 pauseAfter2] ... 
+;  [note2 intensity2 duration2 pauseAfter2] ... )
 (defn playNotes [channel music]
 	(dotimes [n (count music)]
 		(let [q (nth music n)]
@@ -52,18 +58,18 @@
 
 (defn beat[]
 	; Use zero to play two notes simultaneously...
-	(playNotes channel (list 
-		[65 255 100 0] [67 255 100 300] 
-		[65 255 100 0] [67 255 100 300] 
-		[67 255 100 0] [71 255 100 250]
-		[67 255 100 0] [69 255 100 300]
+	(playNotes (channel 0) (list 
+		[51 155 100 0] [53 155 100 300] 
+		[51 155 100 0] [53 155 100 300]
+		[55 155 100 0] [59 155 100 250]
+		[55 155 100 0] [57 155 100 300]
+		[48 155 200 0] [48 155 200 100]
 	))
 )
-
 (beat)
 
 (defn randProgShift[]
-	(.programChange channel (rand-int 120))
+	(.programChange (channel 0) (rand-int 120))
 	(beat)
 )
 (randProgShift)
@@ -77,6 +83,20 @@
 	))))
 )
 
+(playNotes (channel 1)
+	(list
+		[62 255 300 300]
+		[64 255 300 300]
+		[63 255 300 250]
+		[62 255 300 300]
+		[62 255 300 100]
+		[60 255 300 300]
+		[61 255 300 300]
+		[60 255 300 250]
+		[60 255 300 300]
+	)
+)
+
 (def isItOn (new Integer 4))
 (def isItOn nil)
 (startBeat beat 0)
@@ -84,11 +104,3 @@
 
 
 (.close synth)
-
-
-
-
-
-
-
-
