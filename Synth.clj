@@ -1,5 +1,5 @@
 ;;; SYNTH.CLJ
-;;; Mark Burger, 2015
+;;; Mark Burger, August - October 2015
 ;;;
 ;;; To use, simply (load-file "../path/to/Synth.clj")
 ;;;
@@ -42,6 +42,9 @@
 ;;; (stop-beat <identifier>)
 ;;;    A beat generated with (start-beat ...) with a provided identifier can
 ;;;    be stopped with this function using the same identifier.
+;;;
+;;; (synth-shutdown)
+;;;    Stops any running beats and closes the synthesizer.
 ;;;
 ;;;
 ;;; THE NOTES-- 
@@ -133,4 +136,9 @@
 
 (defn stop-beat[id]
 	(.put beat-array id nil)
+)
+
+(defn synth-shutdown[]
+	(map (fn [k] (stop-beat k)) (.keySet beat-array))
+	(.close synth)
 )
