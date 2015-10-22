@@ -1,23 +1,106 @@
-(import '(javax.sound.midi MidiSystem) )
-(def synth (MidiSystem/getSynthesizer))
-(.open synth)
+;;; SYNTH.CLJ
+;;; Mark Burger, 2015
+;;;
+;;; To use, simply (load-file "../path/to/Synth.clj")
+;;;
+;;; API EXPLANATION--
+;;;
+;;; (synth-init)
+;;;    Defines global variables and opens the synthesizer
+;;;
+;;; (channel <number>)
+;;;    returns a channel of the specified number, usually 0 through 15.
+;;;    Each channel can have its own instrument and notes.
+;;;
+;;; (change-instrument <channel> <instrument number>)
+;;;    Changes the instrument playing on the channel. For instrument numbers,
+;;;    use print-instruments
+;;;
+;;; (print-instruments)
+;;;    Prints the number of an instrument beside its human-readable name.
+;;;    Most implementations only allow elements 1 through 127 of this list
+;;;    to get loaded into the synthesizer.
+;;;
+;;; (play-note <channel> <note> <intensity> <duration>)
+;;;    Play the selected note (see below) on the specified channel (use
+;;;    the channel function to retrieve a channel) for an intensity (0 - 255)
+;;;    over a certain (<duration>) number of milliseconds.
+;;;
+;;; (play-notes <channel> <music>)
+;;;    Play the array of music on a channel. <music> is a list of arrays, where
+;;;    each element of the array is four elements-- a note, its intensity,
+;;;    its duration (milliseconds), and the number of milliseconds to wait
+;;;    before playing the next note.
+;;;
+;;; (start-beat <function> <wait> <identifier>)
+;;;    Calls the <function>-- usually an (fn...) with some play-note or
+;;;    play-notes calls in it== every <wait> milliseconds. The identifier
+;;;    is a string that's used for turning on/off this beat timer sequence.
+;;;    Note that using this implementation, a beat can happen across multiple
+;;;    channels.
+;;;
+;;; (stop-beat <identifier>)
+;;;    A beat generated with (start-beat ...) with a provided identifier can
+;;;    be stopped with this function using the same identifier.
+;;;
+;;;
+;;; THE NOTES-- 
+;;;
+;;; Basically, MIDI notes begin at zero. Each increment in the number resembles
+;;; moving right one key (including black keys) across a piano / synthesizer.
+;;;
+;;;    60 is C4
+;;;    61 - C4 #
+;;;    62 - D4
+;;;    63 - D4 #
+;;;    64 - E4
+;;;    65 - F4
+;;;    66 - F4 #
+;;;    67 - G4
+;;;    68 - G4 #
+;;;    69 - A4
+;;;    70 - A4 #
+;;;    71 - B4
+;;;    72 - C5
+;;;     ... etc ...
+;;;
+;;; Information is pretty easily findable with an image search, i.e.
+;;;    https://www.google.com/search?tbm=isch&q=midi+numbers
+;;;
 
-(def instruments (.getAvailableInstruments synth))
 
-(dotimes [i (count instruments)]
-	(println (str i (nth instruments i)))
+(import '(javax.sound.midi MidiSystem) '(java.util HashMap) )
+
+(defn synth-init[]
+	(def synth (MidiSystem/getSynthesizer))
+	(.open synth)
+	(def instruments (.getAvailableInstruments synth))
+	(def beat-array (new HashMap))
+	"Boom!"
 )
-
-; See what instruments are loaded with --
-; (map (fn [a] (.getName a)) instruments)
-; (.loadInstrument synth (nth instruments 3))
 
 ; num, for most implementations should be 0 through 15.
 (defn channel[num]
 	(nth (.getChannels synth) num)
 )
 
-(defn playNote[channel note intensity duration]
+(defn change-instrument [chan instrument]
+	(.programChange (channel chan) instrument)
+)
+
+(defn print-instruments[]
+	(dotimes [i (count instruments)]
+		(println (str i (nth instruments i)))
+	)
+)
+
+; See what instruments are loaded with --
+; (map (fn [a] (.getName a)) instruments)
+; (.loadInstrument synth (nth instruments 3))
+
+
+
+(defn play-note[channel note intensity duration]
 	(.start (new Thread (fn []
 		(.noteOn channel note intensity)
 		(Thread/sleep duration)
@@ -25,82 +108,29 @@
 	)))
 )
 
-; NOTES-- 
-; 60 is C4
-; 61 - C4 #
-; 62 - D4
-; 63 - D4 #
-; 64 - E4
-; 65 - F4
-; 66 - F4 #
-; 67 - G4
-; 68 - G4 #
-; 69 - A4
-; 70 - A4 #
-; 71 - B4
-; 72 - C5
-; etc
+
 
 ; Music is (list
 ;  [note1 intensity1 duration1 pauseAfter1]
 ;  [note2 intensity2 duration2 pauseAfter2] ... )
-(defn playNotes [channel music]
+(defn play-notes [channel music]
 	(dotimes [n (count music)]
 		(let [q (nth music n)]
-			(playNote channel (nth q 0) (nth q 1) (nth q 2))
+			(play-note channel (nth q 0) (nth q 1) (nth q 2))
 			(Thread/sleep (nth q 3))
 		)
 	)
 )
 
-
-
-
-(defn beat[]
-	; Use zero to play two notes simultaneously...
-	(playNotes (channel 0) (list 
-		[51 155 100 0] [53 155 100 300] 
-		[51 155 100 0] [53 155 100 300]
-		[55 155 100 0] [59 155 100 250]
-		[55 155 100 0] [57 155 100 300]
-		[48 155 200 0] [48 155 200 100]
-	))
-)
-(beat)
-
-(defn randProgShift[]
-	(.programChange (channel 0) (rand-int 120))
-	(beat)
-)
-(randProgShift)
-
-
-(defn startBeat[f millis]
+(defn start-beat[f millis id]
 	(.start (new Thread (fn []
-	(while (not (nil? isItOn))
+	(.put beat-array id true)
+	(while (not (nil? (.get beat-array id)))
 		(eval (list f))
 		(Thread/sleep millis)
 	))))
 )
 
-(playNotes (channel 1)
-	(list
-		[62 255 300 300]
-		[64 255 300 300]
-		[63 255 300 250]
-		[62 255 300 300]
-		[62 255 300 100]
-		[60 255 300 300]
-		[61 255 300 300]
-		[60 255 300 250]
-		[60 255 300 300]
-	)
+(defn stop-beat[id]
+	(.put beat-array id nil)
 )
-
-(def isItOn (new Integer 4))
-(def isItOn nil)
-(startBeat beat 0)
-
-
-
-(.close synth)
