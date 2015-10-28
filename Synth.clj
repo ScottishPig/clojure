@@ -14,7 +14,13 @@
 ;;;
 ;;; (change-instrument <channel> <instrument number>)
 ;;;    Changes the instrument playing on the channel. For instrument numbers,
-;;;    use print-instruments
+;;;    use print-instruments. This assumes a default bank. By default in 
+;;;    testing, instrument numbers go from 0 - 128.
+;;;
+;;; (change-instrument-with-bank <channel> <bank> <instrument number>)
+;;;    Sometimes, you'll need the entire range of instruments. That's
+;;;    accessible here. Bank/Program numbers are available from
+;;;    print-instruments.
 ;;;
 ;;; (print-instruments)
 ;;;    Prints the number of an instrument beside its human-readable name.
@@ -74,11 +80,11 @@
 
 (import '(javax.sound.midi MidiSystem) '(java.util HashMap) )
 
+(def synth (MidiSystem/getSynthesizer))
+(def instruments (.getAvailableInstruments synth))
+(def beat-array (new HashMap))
 (defn synth-init[]
-	(def synth (MidiSystem/getSynthesizer))
 	(.open synth)
-	(def instruments (.getAvailableInstruments synth))
-	(def beat-array (new HashMap))
 	"Boom!"
 )
 
@@ -88,12 +94,16 @@
 )
 
 (defn change-instrument [chan instrument]
-	(.programChange (channel chan) instrument)
+	(.programChange chan instrument)
+)
+
+(defn change-instrument-with-bank [chan bank instrument]
+	(.programChange chan bank instrument)
 )
 
 (defn print-instruments[]
 	(dotimes [i (count instruments)]
-		(println (str i (nth instruments i)))
+		(println (nth instruments i))
 	)
 )
 
@@ -142,3 +152,4 @@
 	(map (fn [k] (stop-beat k)) (.keySet beat-array))
 	(.close synth)
 )
+
